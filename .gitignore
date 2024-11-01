@@ -1,7 +1,10 @@
-client.o
+./*.o
+./client
+./server
+./queue
 client
-
-server.o
 server
+queue
 
 .idea/
+.vscode/
