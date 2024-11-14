@@ -1,0 +1,10 @@
+./*.o
+./client
+./server
+./queue
+client
+server
+queue
+
+.idea/
+.vscode/
