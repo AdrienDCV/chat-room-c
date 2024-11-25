@@ -75,7 +75,6 @@ int main(int argc, char const* argv[]){
            printf("\nMessage sent to server failed\n");
          }
          valread = read(client_fd, buffer,1024 - 1);
-         printf("%s\n", buffer);
     }
     return 0;
 }
