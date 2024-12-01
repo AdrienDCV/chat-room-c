@@ -14,18 +14,21 @@
 #define PORT 8080
 #define BUFFER_SIZE 1024
 #define CHAT_ROOM_SIZE 5
-    
 
 int new_socket;
 int should_run = 1;
 Queue queue;
 UsersList users_list;
 
+// Mutexes
+pthread_mutex_t queue_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t users_list_mutex = PTHREAD_MUTEX_INITIALIZER;
+
 void init_socket(int *server_fd);
 void* listen_to_client(void* arg);
 void* send_test_message(void* arg);
 
-int main(int argc, char const * argv[]);
+int main(int argc, char const *argv[]);
 
 void init_socket(int *server_fd) {
     if ((*server_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
@@ -40,7 +43,11 @@ void* listen_to_client(void* arg) {
         ssize_t valread = read(new_socket, buffer, BUFFER_SIZE - 1);
         if (valread > 0) {
             buffer[valread] = '\0';
+
+            // QUEUE MUTEX LOCKING
+            pthread_mutex_lock(&queue_mutex);
             put_in_queue(&queue, buffer);
+            pthread_mutex_unlock(&queue_mutex);
 
             printf("%s\n", buffer);
             send(new_socket, buffer, strlen(buffer), 0);
@@ -83,7 +90,6 @@ void* send_test_message(void* arg) {
     return NULL;
 }
 
-
 int main(int argc, char const* argv[]) {
 
     int socket_fd;
@@ -110,39 +116,36 @@ int main(int argc, char const* argv[]) {
     }
 
     if (listen(socket_fd, CHAT_ROOM_SIZE) == 0) {
-        printf("SERVER: Listenning\n");
+        printf("SERVER: Listening\n");
     } else {
         perror("ERROR: listen: could not listen the socket because the queue is full\n");
-        exit(EXIT_FAILURE);        
+        exit(EXIT_FAILURE);
     }
 
-    pid_t child_pid;
     while (should_run) {
         new_socket = accept(socket_fd, (struct sockaddr*)&address, &addrlen);
         if (new_socket < 0) {
-            exit(1);
+            perror("Accept error");
+            exit(EXIT_FAILURE);
         }
+
+        // USERS LIST MUTEX LOCKING
+        pthread_mutex_lock(&users_list_mutex);
         users_list.users[users_list.nb_users] = &new_socket;
         users_list.nb_users++;
+        pthread_mutex_unlock(&users_list_mutex);
 
         printf("Connection accepted\n");
-        
-        pthread_create(&listen_thread, NULL, listen_to_client, NULL);
 
+        pthread_create(&listen_thread, NULL, listen_to_client, NULL);
     }
 
-    /*
-    pthread_t listen_thread, send_thread;
-    pthread_create(&listen_thread, NULL, listen_to_client, NULL);
-    pthread_create(&send_thread, NULL, send_test_message, NULL);
+    // MUTEX DESTROYING
+    pthread_mutex_destroy(&queue_mutex);
+    pthread_mutex_destroy(&users_list_mutex);
 
-    pthread_join(listen_thread, NULL);
-    pthread_join(send_thread, NULL);
-    */
-
-    // closing the connected socket
+    // Close the connected socket
     close(new_socket);
-
 
     return 0;
 }
