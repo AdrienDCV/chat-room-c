@@ -15,7 +15,7 @@
 #define USERNAME_SIZE 255
 
 int sock_fd = 0;
-int flag = 0;
+int disconnection_flag = 0;
 char username[USERNAME_SIZE];
 
 void remove_carriage_return_char (char* msg, int length) {
@@ -43,7 +43,9 @@ void send_message() {
         remove_carriage_return_char(message, MSG_SIZE);
     
         if (strcmp(message, "exit") == 0) {
-            break;
+            sprintf(buffer, "%s", message);
+            send(sock_fd, buffer, strlen(buffer), 0);
+            disconnection_flag = 1;
         } else {
             time(&current_time);
             struct tm *local_time = localtime(&current_time);
@@ -140,8 +142,8 @@ int main(int argc, char const* argv[]){
     }
     
     while (1) {
-        if (flag) {
-            printf("Au revoir !");
+        if (disconnection_flag) {
+            printf("Disconnected\n");
             break;
         }
     }
