@@ -127,7 +127,6 @@ void *listen_to_client(void* arg) {
                 send_message(buffer);
                 should_stop = 1;
             } else if (strlen(buffer) > 0){
-                printf("ne devrait pas être là\n");
 				send_message(buffer);
 
 				remove_carriage_return_char(buffer, strlen(buffer));

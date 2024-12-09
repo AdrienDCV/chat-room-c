@@ -48,7 +48,7 @@ void send_message() {
             sprintf(buffer, "%s", message);
             send(sock_fd, buffer, strlen(buffer), 0);
             disconnection_flag = 1;
-        } else {
+        } else if (strlen(message) > 0) {
             time(&current_time);
             struct tm *local_time = localtime(&current_time);
             strftime(message_prefix, sizeof(message_prefix), "(%d-%m/%H:%M) ", local_time);
