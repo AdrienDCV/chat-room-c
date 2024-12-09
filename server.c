@@ -44,16 +44,14 @@ void remove_carriage_return_char (char* msg, int length) {
   }
 }
 
-void send_message(char *s, int uid){
+void send_message(char *s){
 	pthread_mutex_lock(&users_mutex);
 
 	for(int i=0; i<CHAT_ROOM_SIZE; ++i){
 		if(users[i]){
-			if(users[i]->uid != uid){
-				if(write(users[i]->sockfd, s, strlen(s)) < 0){
-					perror("ERROR: write to descriptor failed");
-					break;
-				}
+			if(write(users[i]->sockfd, s, strlen(s)) < 0){
+				perror("ERROR: write to descriptor failed");
+				break;
 			}
 		}
 	}
@@ -109,7 +107,7 @@ void *listen_to_client(void* arg) {
         strcpy(user->username, username);
         sprintf(buffer, "%s has joined the chat\n", user->username);
         printf("%s", buffer);
-        send_message(buffer, user->uid);
+        send_message(buffer);
     }
 
     bzero(buffer, BUFFER_SIZE);
@@ -126,11 +124,11 @@ void *listen_to_client(void* arg) {
         if (receive > 0){
             if (strcmp(buffer, "exit") == 0) {
                 sprintf(buffer, "%s has left the chat\n", user->username);
-                send_message(buffer, user->uid);
+                send_message(buffer);
                 should_stop = 1;
             } else if (strlen(buffer) > 0){
                 printf("ne devrait pas être là\n");
-				send_message(buffer, user->uid);
+				send_message(buffer);
 
 				remove_carriage_return_char(buffer, strlen(buffer));
 				printf("%s\n", buffer);

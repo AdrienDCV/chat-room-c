@@ -40,6 +40,8 @@ void send_message() {
     while (should_run) {
 
         fgets(message, MSG_SIZE, stdin);
+        printf("\033[1A\033[2K\r"); // Remonte d'une ligne et efface
+        fflush(stdout);
         remove_carriage_return_char(message, MSG_SIZE);
     
         if (strcmp(message, "exit") == 0) {
@@ -53,6 +55,7 @@ void send_message() {
             strcat(message_prefix, username);
 
             snprintf(buffer, sizeof(buffer), "%s : %s\n", message_prefix, message);
+
             send(sock_fd, buffer, strlen(buffer), 0);
         }
 
