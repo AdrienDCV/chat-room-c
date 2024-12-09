@@ -5,6 +5,7 @@
 client
 server
 queue
+/cmake-build-debug
 
 .idea/
 .vscode/

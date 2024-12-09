@@ -11,10 +11,12 @@
 #define PORT 8080
 #define IP_SERVER "127.0.0.1"
 #define MSG_SIZE 1024
+#define BUFFER_SIZE 2048
+#define USERNAME_SIZE 255
 
 int sock_fd = 0;
 int flag = 0;
-char username[128];
+char username[USERNAME_SIZE];
 
 void remove_carriage_return_char (char* msg, int length) {
   int i;
@@ -29,9 +31,10 @@ void remove_carriage_return_char (char* msg, int length) {
 void send_message() {
 
     char message[MSG_SIZE];
-    char buffer[MSG_SIZE];
+    char buffer[BUFFER_SIZE];
     time_t current_time;
-    char message_prefix[MSG_SIZE];
+
+    char message_prefix[USERNAME_SIZE + 30];
 
     int should_run = 1;
     while (should_run) {
@@ -47,7 +50,7 @@ void send_message() {
             strftime(message_prefix, sizeof(message_prefix), "(%d-%m/%H:%M) ", local_time);
             strcat(message_prefix, username);
 
-            sprintf(buffer, "%s : %s\n", message_prefix, message);
+            snprintf(buffer, sizeof(buffer), "%s : %s\n", message_prefix, message);
             send(sock_fd, buffer, strlen(buffer), 0);
         }
 
@@ -61,7 +64,7 @@ void send_message() {
 void receive_message() {
     
     char message[MSG_SIZE];
-    char buffer[MSG_SIZE];
+    char buffer[BUFFER_SIZE];
 
     int should_run = 1;
     while (should_run) {
@@ -82,10 +85,21 @@ int main(int argc, char const* argv[]){
     int status;
     struct sockaddr_in server_addr;
 
-    printf("Enter your username : ");
-    fgets(username, 128, stdin);
-    username[strlen(username) -1 ] = '\0';
-    
+    printf("Enter your username: ");
+    if (fgets(username, sizeof(username), stdin) == NULL) {
+        fprintf(stderr, "Error reading input.\n");
+        return -1;
+    }
+
+    if (username[strlen(username) - 1] != '\n') {
+        int c;
+        while ((c = getchar()) != '\n' && c != EOF);
+
+        fprintf(stderr, "Username is too long. Maximum length is %d characters.\n", (USERNAME_SIZE-1));
+        return -1;
+    }
+    username[strlen(username) - 1] = '\0';
+
 
     sock_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (sock_fd < 0) {
