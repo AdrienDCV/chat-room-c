@@ -14,9 +14,16 @@
 #define BUFFER_SIZE 2048
 #define USERNAME_SIZE 255
 
-int sock_fd = 0;
+int socket_file_descriptor = 0;
 int disconnection_flag = 0;
 char username[USERNAME_SIZE];
+
+void remove_carriage_return_char (char* message);
+int read_username();
+int connect_to_room();
+void send_message();
+void listen_server_message();
+int main(int argc, char const* argv[]);
 
 void remove_carriage_return_char (char* message) {
     int message_length = strlen(message) - 1;
@@ -25,11 +32,41 @@ void remove_carriage_return_char (char* message) {
     }
 }
 
+int read_username() {
+    printf("CLIENT: Enter your username: ");
+    if (fgets(username, sizeof(username), stdin) == NULL) {
+        printf("CLIENT: Error reading input.\n");
+        return 1;
+    } else if (strlen(username) < 2) {
+        printf("CLIENT-ERROR: Username must be at least 1 character long\n");
+        return 1;
+    } else if (strlen(username) > USERNAME_SIZE && username[strlen(username) - 1] != '\n') {
+        fprintf(stderr, "CLIENT-ERROR: Username is too long. Maximum length is %d characters.\n",(USERNAME_SIZE-1));
+        return 1;
+    }
+
+    username[strlen(username) - 1] = '\0';
+    return 0;
+
+}
+
+int connect_to_room() {
+    send(socket_file_descriptor, username, USERNAME_SIZE, 0);
+    char error_message[MSG_SIZE];
+    int rcv = recv(socket_file_descriptor, error_message, MSG_SIZE, 0);
+    if (rcv == 65) {
+        printf("%s", error_message);
+        disconnection_flag = 0;
+        return 1;
+    }
+
+    return 0;
+}
+
 void send_message() {
     char message[MSG_SIZE];
     char buffer[BUFFER_SIZE];
     time_t current_time;
-
     char message_prefix[USERNAME_SIZE + 30];
 
     int should_run = 1;
@@ -42,7 +79,7 @@ void send_message() {
     
         if (strcmp(message, "exit") == 0) {
             sprintf(buffer, "%s", message);
-            send(sock_fd, buffer, strlen(buffer), 0);
+            send(socket_file_descriptor, buffer, strlen(buffer), 0);
             disconnection_flag = 1;
         } else if (strlen(message) > 0) {
             time(&current_time);
@@ -52,7 +89,7 @@ void send_message() {
 
             snprintf(buffer, sizeof(buffer), "%s : %s\n", message_prefix, message);
 
-            send(sock_fd, buffer, strlen(buffer), 0);
+            send(socket_file_descriptor, buffer, strlen(buffer), 0);
         }
 
         bzero(message, MSG_SIZE);
@@ -60,7 +97,7 @@ void send_message() {
     }
 }
 
-void receive_message() {
+void listen_server_message() {
     
     char message[MSG_SIZE];
     char buffer[BUFFER_SIZE];
@@ -68,7 +105,7 @@ void receive_message() {
     int should_run = 1;
     while (should_run) {
         
-        int received = recv(sock_fd, message, MSG_SIZE, 0);
+        int received = recv(socket_file_descriptor, message, MSG_SIZE, 0);
         if (received > 0) {
             printf("%s", message);
             fflush(stdout);
@@ -77,7 +114,6 @@ void receive_message() {
         }
         memset(message, 0, sizeof(message));
     }
-
 }
 
 int main(int argc, char const* argv[]) {
@@ -86,43 +122,42 @@ int main(int argc, char const* argv[]) {
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(PORT);
 
-
-    printf("CLIENT: Enter your username: ");
-    if (fgets(username, sizeof(username), stdin) == NULL) {
-        fprintf(stderr, "CLIENT: Error reading input.\n");
-        return EXIT_FAILURE;
-    }
-    if (strlen(username) > USERNAME_SIZE && username[strlen(username) - 1] != '\n') {
-        fprintf(stderr, "CLIENT-ERROR: Username is too long. Maximum length is %d characters.\n", (USERNAME_SIZE-1));
-        return EXIT_FAILURE;
-    }
-    username[strlen(username) - 1] = '\0';
-
-
-    sock_fd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sock_fd < 0) {
+    socket_file_descriptor = socket(AF_INET, SOCK_STREAM, 0);
+    if (socket_file_descriptor < 0) {
         printf("CLIENT-ERROR: socket: could not open the socket\n");
         return EXIT_FAILURE;
     }
 
     if (inet_pton(AF_INET, IP_SERVER, &server_addr.sin_addr)<= 0) {
-        printf("ERROR: inet_pton: invalid address or address not supported\n");
+        printf("CLIENT-ERROR: inet_pton: invalid address or address not supported\n");
         return EXIT_FAILURE;
     }
 
-    if (connect(sock_fd, (struct sockaddr*)&server_addr, sizeof(server_addr)) == -1) {
-        printf("ERROR: connect: connection Failed\n");
+    if (connect(socket_file_descriptor, (struct sockaddr*)&server_addr, sizeof(server_addr)) == -1) {
+        printf("CLIENT-ERROR: connect: connection Failed\n");
         return EXIT_FAILURE;
     }
 
-    send(sock_fd, username, USERNAME_SIZE, 0);
+    int valid_username = 1;
+    while (valid_username != 0) {
+        if (read_username() == 0) {
+            valid_username = 0;
+        }
+    }
 
-    fflush(stdout);
-    printf("≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈\n");
-    printf("≈≈≈≈≈≈≈≈≈ FISA3 - CHAT ROOM ≈≈≈≈≈≈≈≈≈\n");
-    printf("≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈\n");
-    printf("CLIENT-INFO: You have joined the chat room\n");
-
+    int connected_to_room = connect_to_room();
+    if (connected_to_room == 0) {
+        fflush(stdout);
+        printf("≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈\n");
+        printf("≈≈≈≈≈≈≈≈≈ FISA3 - CHAT ROOM ≈≈≈≈≈≈≈≈≈\n");
+        printf("≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈\n");
+        printf("CLIENT-INFO: You have joined the chat room\n");
+    } else {
+        printf("CLIENT-ERROR: Closing connection to server.\n");
+        close(socket_file_descriptor);
+        return EXIT_FAILURE;
+    }
+    
     pthread_t send_msg_thread;
     if(pthread_create(&send_msg_thread, NULL, (void *) send_message, NULL) != 0){
         printf("CLIENT-ERROR: pthread: could not create thread\n");
@@ -130,7 +165,7 @@ int main(int argc, char const* argv[]) {
     }
 
     pthread_t receive_msg_thread;
-    if(pthread_create(&receive_msg_thread, NULL, (void *) receive_message, NULL) != 0){
+    if(pthread_create(&receive_msg_thread, NULL, (void *) listen_server_message, NULL) != 0){
         printf("CLIENT-ERROR: pthread: could not create thread\n");
         return EXIT_FAILURE;
     }
@@ -143,8 +178,7 @@ int main(int argc, char const* argv[]) {
         }
     }
     
-    close(sock_fd);
+    close(socket_file_descriptor);
 
     return EXIT_SUCCESS;
-
 }
