@@ -1,13 +1,17 @@
-Chat room in C project
+# Chat room in C project
 
-Compile project:  
+DA COSTA VEIGA Adrien  
+MZOUGHI Khalil  
+
+----
+## Compile project:  
 ```bash
 gcc client.c -o client
 
-gcc server.c queue.c -o server
+gcc server.c -o server
 ```
 
-Run project:  
+## Run project:  
 ```bash
 ./server
 
